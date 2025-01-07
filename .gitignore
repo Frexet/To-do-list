@@ -1,0 +1,6 @@
+bin/
+obj/
+appsettings.json
+.vs/
+node_modules/
+wwwroot/
