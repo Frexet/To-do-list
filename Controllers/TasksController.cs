@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using TaskModel = TodoListApi.Models.Task; // Avoid ambiguity with System.Threading.Tasks.Task
+using Microsoft.EntityFrameworkCore;
+using TodoListApi.Data;
+using TodoListApi.Models;
 
 namespace TodoListApi.Controllers
 {
@@ -7,18 +9,23 @@ namespace TodoListApi.Controllers
     [ApiController]
     public class TasksController : ControllerBase
     {
-        private static List<TaskModel> tasks = new();
+        private readonly TodoContext _context;
+
+        public TasksController(TodoContext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
-        public ActionResult<IEnumerable<TaskModel>> GetTasks()
+        public async Task<ActionResult<IEnumerable<TaskItem>>> GetTasks()
         {
-            return Ok(tasks);
+            return await _context.Tasks.ToListAsync();
         }
 
         [HttpGet("{id}")]
-        public ActionResult<TaskModel> GetTask(int id)
+        public async Task<ActionResult<TaskItem>> GetTask(int id)
         {
-            var task = tasks.FirstOrDefault(t => t.Id == id);
+            var task = await _context.Tasks.FindAsync(id);
             if (task == null)
                 return NotFound();
 
@@ -26,33 +33,50 @@ namespace TodoListApi.Controllers
         }
 
         [HttpPost]
-        public ActionResult<TaskModel> CreateTask(TaskModel task)
+        public async Task<ActionResult<TaskItem>> CreateTask([FromBody] TaskItem task)
         {
-            task.Id = tasks.Count + 1;
-            tasks.Add(task);
+            if (task == null || string.IsNullOrWhiteSpace(task.Name))
+                return BadRequest("Invalid task data");
+
+            _context.Tasks.Add(task);
+            await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetTask), new { id = task.Id }, task);
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateTask(int id, TaskModel updatedTask)
+        public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskItem updatedTask)
         {
-            var task = tasks.FirstOrDefault(t => t.Id == id);
-            if (task == null)
+            if (id != updatedTask.Id)
+                return BadRequest("Task ID mismatch");
+
+            var existingTask = await _context.Tasks.FindAsync(id);
+            if (existingTask == null)
                 return NotFound();
 
-            task.Name = updatedTask.Name;
+            existingTask.Name = updatedTask.Name;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return StatusCode(500, "Error updating task");
+            }
+
             return NoContent();
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeleteTask(int id)
+        public async Task<IActionResult> DeleteTask(int id)
         {
-            var task = tasks.FirstOrDefault(t => t.Id == id);
+            var task = await _context.Tasks.FindAsync(id);
             if (task == null)
-                return NotFound();
+                return NotFound("Task not found");
 
-            tasks.Remove(task);
-            return NoContent();
+            _context.Tasks.Remove(task);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Task deleted successfully" });
         }
     }
 }
