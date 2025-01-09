@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using TagModel = TodoListApi.Models.Tag; // Avoid ambiguity
+using Microsoft.EntityFrameworkCore;
+using TodoListApi.Data;
+using TodoListApi.Models;
 
 namespace TodoListApi.Controllers
 {
@@ -7,18 +9,23 @@ namespace TodoListApi.Controllers
     [ApiController]
     public class TagsController : ControllerBase
     {
-        private static List<TagModel> tags = new();
+        private readonly TodoContext _context;
+
+        public TagsController(TodoContext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
-        public ActionResult<IEnumerable<TagModel>> GetTags()
+        public async Task<ActionResult<IEnumerable<Tag>>> GetTags()
         {
-            return Ok(tags);
+            return await _context.Tags.ToListAsync();
         }
 
         [HttpGet("{id}")]
-        public ActionResult<TagModel> GetTag(int id)
+        public async Task<ActionResult<Tag>> GetTag(int id)
         {
-            var tag = tags.FirstOrDefault(t => t.Id == id);
+            var tag = await _context.Tags.FindAsync(id);
             if (tag == null)
                 return NotFound();
 
@@ -26,33 +33,50 @@ namespace TodoListApi.Controllers
         }
 
         [HttpPost]
-        public ActionResult<TagModel> CreateTag(TagModel tag)
+        public async Task<ActionResult<Tag>> CreateTag([FromBody] Tag tag)
         {
-            tag.Id = tags.Count + 1;
-            tags.Add(tag);
+            if (tag == null || string.IsNullOrWhiteSpace(tag.Name))
+                return BadRequest("Invalid tag data");
+
+            _context.Tags.Add(tag);
+            await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetTag), new { id = tag.Id }, tag);
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateTag(int id, TagModel updatedTag)
+        public async Task<IActionResult> UpdateTag(int id, [FromBody] Tag updatedTag)
         {
-            var tag = tags.FirstOrDefault(t => t.Id == id);
-            if (tag == null)
+            if (id != updatedTag.Id)
+                return BadRequest("Tag ID mismatch");
+
+            var existingTag = await _context.Tags.FindAsync(id);
+            if (existingTag == null)
                 return NotFound();
 
-            tag.Name = updatedTag.Name;
+            existingTag.Name = updatedTag.Name;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return StatusCode(500, "Error updating tag");
+            }
+
             return NoContent();
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeleteTag(int id)
+        public async Task<IActionResult> DeleteTag(int id)
         {
-            var tag = tags.FirstOrDefault(t => t.Id == id);
+            var tag = await _context.Tags.FindAsync(id);
             if (tag == null)
-                return NotFound();
+                return NotFound("Tag not found");
 
-            tags.Remove(tag);
-            return NoContent();
+            _context.Tags.Remove(tag);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Tag deleted successfully" });
         }
     }
 }

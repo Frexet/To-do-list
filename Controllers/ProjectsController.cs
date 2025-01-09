@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using ProjectModel = TodoListApi.Models.Project; // Avoid ambiguity
+using Microsoft.EntityFrameworkCore;
+using TodoListApi.Data;
+using TodoListApi.Models;
 
 namespace TodoListApi.Controllers
 {
@@ -7,18 +9,23 @@ namespace TodoListApi.Controllers
     [ApiController]
     public class ProjectsController : ControllerBase
     {
-        private static List<ProjectModel> projects = new();
+        private readonly TodoContext _context;
+
+        public ProjectsController(TodoContext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
-        public ActionResult<IEnumerable<ProjectModel>> GetProjects()
+        public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
-            return Ok(projects);
+            return await _context.Projects.ToListAsync();
         }
 
         [HttpGet("{id}")]
-        public ActionResult<ProjectModel> GetProject(int id)
+        public async Task<ActionResult<Project>> GetProject(int id)
         {
-            var project = projects.FirstOrDefault(p => p.Id == id);
+            var project = await _context.Projects.FindAsync(id);
             if (project == null)
                 return NotFound();
 
@@ -26,33 +33,50 @@ namespace TodoListApi.Controllers
         }
 
         [HttpPost]
-        public ActionResult<ProjectModel> CreateProject(ProjectModel project)
+        public async Task<ActionResult<Project>> CreateProject([FromBody] Project project)
         {
-            project.Id = projects.Count + 1;
-            projects.Add(project);
+            if (project == null || string.IsNullOrWhiteSpace(project.Name))
+                return BadRequest("Invalid project data");
+
+            _context.Projects.Add(project);
+            await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateProject(int id, ProjectModel updatedProject)
+        public async Task<IActionResult> UpdateProject(int id, [FromBody] Project updatedProject)
         {
-            var project = projects.FirstOrDefault(p => p.Id == id);
-            if (project == null)
+            if (id != updatedProject.Id)
+                return BadRequest("Project ID mismatch");
+
+            var existingProject = await _context.Projects.FindAsync(id);
+            if (existingProject == null)
                 return NotFound();
 
-            project.Name = updatedProject.Name;
+            existingProject.Name = updatedProject.Name;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return StatusCode(500, "Error updating project");
+            }
+
             return NoContent();
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeleteProject(int id)
+        public async Task<IActionResult> DeleteProject(int id)
         {
-            var project = projects.FirstOrDefault(p => p.Id == id);
+            var project = await _context.Projects.FindAsync(id);
             if (project == null)
-                return NotFound();
+                return NotFound("Project not found");
 
-            projects.Remove(project);
-            return NoContent();
+            _context.Projects.Remove(project);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Project deleted successfully" });
         }
     }
 }
