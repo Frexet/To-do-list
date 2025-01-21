@@ -8,9 +8,24 @@ namespace TodoListApi.Data
         public TodoContext CreateDbContext(string[] args)
         {
             var optionsBuilder = new DbContextOptionsBuilder<TodoContext>();
-            optionsBuilder.UseSqlite("Data Source=todo.db");
+
+            try
+            {
+                optionsBuilder.UseSqlite(GetConnectionString());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error configuring DbContext: {ex.Message}");
+                throw;
+            }
 
             return new TodoContext(optionsBuilder.Options);
+        }
+
+        private static string GetConnectionString()
+        {
+            return Environment.GetEnvironmentVariable("TODO_DB_CONNECTION") 
+                ?? "Data Source=todo.db";
         }
     }
 }

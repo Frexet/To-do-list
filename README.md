@@ -1,19 +1,18 @@
 # 📝 To-Do List API with .NET 9 & SQLite 🚀
 
-A **.NET 9 Web API** for managing a simple **To-Do List**, built with **Entity Framework Core** and **SQLite**.  
-This API allows users to **create, update, retrieve, delete, and complete tasks**.
+A powerful **.NET 9 Web API** for managing a simple **To-Do List**, built with **Entity Framework Core** and **SQLite**.  
+This API supports **CRUD operations** and tracks tasks marked as completed.
 
 ---
 
 ## 📌 **New Features**
 ### 🔥 **Task Completion**
-- Added a **`PATCH /api/Tasks/{id}/complete`** endpoint to mark a task as completed.
-- The **`TaskItem` model now includes an `IsCompleted` property**.
-- This enables users to track whether a task is done.
+- **`PATCH /api/Tasks/{id}/complete`**: A new endpoint to mark a task as completed.
+- **`TaskItem` model updated** with an `IsCompleted` property to track task completion.
 
 ### 🔥 **Database Improvements**
-- Updated **SQLite schema** to include the `IsCompleted` field.
-- **Migrations were updated** to reflect the new database structure.
+- Updated SQLite schema to include the `IsCompleted` field.
+- **Migrations adjusted** to reflect the new database structure.
 
 ---
 
