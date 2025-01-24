@@ -19,7 +19,6 @@ namespace TodoListApi.Controllers
             _context = context;
         }
 
-        // Get all projects with optional pagination
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects(int pageNumber = 1, int pageSize = 10)
         {
@@ -27,6 +26,8 @@ namespace TodoListApi.Controllers
                 return BadRequest("Page number and page size must be greater than zero.");
 
             var projects = await _context.Projects
+                .Include(p => p.TaskItems)
+                .Include(p => p.Tags)
                 .OrderBy(p => p.Id)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -35,18 +36,20 @@ namespace TodoListApi.Controllers
             return Ok(projects);
         }
 
-        // Get a specific project by Id
         [HttpGet("{id}")]
         public async Task<ActionResult<Project>> GetProject(int id)
         {
-            var project = await _context.Projects.FindAsync(id);
+            var project = await _context.Projects
+                .Include(p => p.TaskItems)
+                .Include(p => p.Tags)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
             if (project == null)
                 return NotFound("Project not found");
 
             return Ok(project);
         }
 
-        // Create a new project
         [HttpPost]
         public async Task<ActionResult<Project>> CreateProject([FromBody] Project project)
         {
@@ -74,7 +77,6 @@ namespace TodoListApi.Controllers
             return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
         }
 
-        // Update an existing project
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateProject(int id, [FromBody] Project updatedProject)
         {
@@ -84,7 +86,11 @@ namespace TodoListApi.Controllers
             if (id != updatedProject.Id)
                 return BadRequest("Project ID mismatch.");
 
-            var existingProject = await _context.Projects.FindAsync(id);
+            var existingProject = await _context.Projects
+                .Include(p => p.TaskItems)
+                .Include(p => p.Tags)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
             if (existingProject == null)
                 return NotFound("Project not found.");
 
@@ -97,6 +103,7 @@ namespace TodoListApi.Controllers
             existingProject.Name = updatedProject.Name;
             existingProject.Description = updatedProject.Description;
             existingProject.DueDate = updatedProject.DueDate;
+            existingProject.IsPaused = updatedProject.IsPaused;
             existingProject.UpdatedAt = DateTime.UtcNow;
 
             try
@@ -116,11 +123,14 @@ namespace TodoListApi.Controllers
             return NoContent();
         }
 
-        // Delete a project
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProject(int id)
         {
-            var project = await _context.Projects.FindAsync(id);
+            var project = await _context.Projects
+                .Include(p => p.TaskItems)
+                .Include(p => p.Tags)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
             if (project == null)
                 return NotFound("Project not found.");
 

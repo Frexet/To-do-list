@@ -11,7 +11,13 @@ namespace TodoListApi.Data
 
             try
             {
-                optionsBuilder.UseSqlite(GetConnectionString());
+                var connectionString = GetConnectionString();
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    throw new InvalidOperationException("Connection string is not defined.");
+                }
+
+                optionsBuilder.UseSqlite(connectionString);
             }
             catch (Exception ex)
             {

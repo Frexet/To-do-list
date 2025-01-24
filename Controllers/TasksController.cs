@@ -19,7 +19,6 @@ namespace TodoListApi.Controllers
             _context = context;
         }
 
-        // Get all tasks with optional pagination
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TaskItem>>> GetTasks(int pageNumber = 1, int pageSize = 10)
         {
@@ -27,6 +26,8 @@ namespace TodoListApi.Controllers
                 return BadRequest("Page number and page size must be greater than zero.");
 
             var tasks = await _context.Tasks
+                .Include(t => t.Project)
+                .Include(t => t.Tags)
                 .OrderBy(t => t.Id)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -35,18 +36,20 @@ namespace TodoListApi.Controllers
             return Ok(tasks);
         }
 
-        // Get a specific task by Id
         [HttpGet("{id}")]
         public async Task<ActionResult<TaskItem>> GetTask(int id)
         {
-            var task = await _context.Tasks.FindAsync(id);
+            var task = await _context.Tasks
+                .Include(t => t.Project)
+                .Include(t => t.Tags)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
             if (task == null)
                 return NotFound("Task not found.");
 
             return Ok(task);
         }
 
-        // Create a new task
         [HttpPost]
         public async Task<ActionResult<TaskItem>> CreateTask([FromBody] TaskItem task)
         {
@@ -55,6 +58,10 @@ namespace TodoListApi.Controllers
 
             if (task.DueDate.HasValue && task.DueDate.Value < DateTime.UtcNow)
                 return BadRequest("DueDate cannot be in the past.");
+
+            var projectExists = await _context.Projects.AnyAsync(p => p.Id == task.ProjectId);
+            if (!projectExists)
+                return BadRequest("The associated project does not exist.");
 
             task.CreatedAt = DateTime.UtcNow;
             task.UpdatedAt = DateTime.UtcNow;
@@ -65,16 +72,14 @@ namespace TodoListApi.Controllers
             {
                 await _context.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error: {ex.Message}");
                 return StatusCode(500, "An error occurred while creating the task.");
             }
 
             return CreatedAtAction(nameof(GetTask), new { id = task.Id }, task);
         }
 
-        // Update an existing task
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskItem updatedTask)
         {
@@ -84,7 +89,11 @@ namespace TodoListApi.Controllers
             if (id != updatedTask.Id)
                 return BadRequest("Task ID mismatch.");
 
-            var existingTask = await _context.Tasks.FindAsync(id);
+            var existingTask = await _context.Tasks
+                .Include(t => t.Project)
+                .Include(t => t.Tags)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
             if (existingTask == null)
                 return NotFound("Task not found.");
 
@@ -107,32 +116,34 @@ namespace TodoListApi.Controllers
             {
                 return Conflict("Another user has updated this task. Please refresh and try again.");
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error: {ex.Message}");
                 return StatusCode(500, "An error occurred while updating the task.");
             }
 
             return NoContent();
         }
 
-        // Delete a task
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTask(int id)
         {
-            var task = await _context.Tasks.FindAsync(id);
+            var task = await _context.Tasks
+                .Include(t => t.Project)
+                .Include(t => t.Tags)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
             if (task == null)
                 return NotFound("Task not found.");
 
+            task.Tags.Clear();
             _context.Tasks.Remove(task);
 
             try
             {
                 await _context.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error: {ex.Message}");
                 return StatusCode(500, "An error occurred while deleting the task.");
             }
 

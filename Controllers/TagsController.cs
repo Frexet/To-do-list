@@ -19,7 +19,6 @@ namespace TodoListApi.Controllers
             _context = context;
         }
 
-        // Get all tags with pagination
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Tag>>> GetTags(int pageNumber = 1, int pageSize = 10)
         {
@@ -27,6 +26,8 @@ namespace TodoListApi.Controllers
                 return BadRequest("Page number and page size must be greater than zero.");
 
             var tags = await _context.Tags
+                .Include(t => t.TaskItems)
+                .Include(t => t.Projects)
                 .OrderBy(t => t.Id)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -35,18 +36,20 @@ namespace TodoListApi.Controllers
             return Ok(tags);
         }
 
-        // Get a specific tag by Id
         [HttpGet("{id}")]
         public async Task<ActionResult<Tag>> GetTag(int id)
         {
-            var tag = await _context.Tags.FindAsync(id);
+            var tag = await _context.Tags
+                .Include(t => t.TaskItems)
+                .Include(t => t.Projects)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
             if (tag == null)
                 return NotFound("Tag not found");
 
             return Ok(tag);
         }
 
-        // Create a new tag
         [HttpPost]
         public async Task<ActionResult<Tag>> CreateTag([FromBody] Tag tag)
         {
@@ -65,16 +68,14 @@ namespace TodoListApi.Controllers
             {
                 await _context.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error: {ex.Message}");
                 return StatusCode(500, "An error occurred while creating the tag.");
             }
 
             return CreatedAtAction(nameof(GetTag), new { id = tag.Id }, tag);
         }
 
-        // Update an existing tag
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTag(int id, [FromBody] Tag updatedTag)
         {
@@ -84,7 +85,11 @@ namespace TodoListApi.Controllers
             if (id != updatedTag.Id)
                 return BadRequest("Tag ID mismatch.");
 
-            var existingTag = await _context.Tags.FindAsync(id);
+            var existingTag = await _context.Tags
+                .Include(t => t.TaskItems)
+                .Include(t => t.Projects)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
             if (existingTag == null)
                 return NotFound("Tag not found.");
 
@@ -103,32 +108,35 @@ namespace TodoListApi.Controllers
             {
                 return Conflict("Another user has updated this tag. Please refresh and try again.");
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error: {ex.Message}");
                 return StatusCode(500, "An error occurred while updating the tag.");
             }
 
             return NoContent();
         }
 
-        // Delete a tag
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTag(int id)
         {
-            var tag = await _context.Tags.FindAsync(id);
+            var tag = await _context.Tags
+                .Include(t => t.TaskItems)
+                .Include(t => t.Projects)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
             if (tag == null)
                 return NotFound("Tag not found.");
 
+            tag.TaskItems.Clear();
+            tag.Projects.Clear();
             _context.Tags.Remove(tag);
 
             try
             {
                 await _context.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error: {ex.Message}");
                 return StatusCode(500, "An error occurred while deleting the tag.");
             }
 
