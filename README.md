@@ -1,18 +1,29 @@
 # 📝 To-Do List API with .NET 9 & SQLite 🚀
 
 A powerful **.NET 9 Web API** for managing a simple **To-Do List**, built with **Entity Framework Core** and **SQLite**.  
-This API supports **CRUD operations** and tracks tasks marked as completed.
+This API supports **CRUD operations**, tracks tasks marked as completed, and integrates advanced features like project pausing and tag management.
 
 ---
 
-## 📌 **New Features**
-### 🔥 **Task Completion**
-- **`PATCH /api/Tasks/{id}/complete`**: A new endpoint to mark a task as completed.
-- **`TaskItem` model updated** with an `IsCompleted` property to track task completion.
+## 📌 **Features**
+### 🔥 **Task Management**
+- **CRUD operations** for tasks.
+- **`PATCH /api/Tasks/{id}/complete`**: Mark a task as completed.
+- Tracks deadlines and completion status (`IsCompleted`).
 
-### 🔥 **Database Improvements**
-- Updated SQLite schema to include the `IsCompleted` field.
-- **Migrations adjusted** to reflect the new database structure.
+### 🔥 **Project Management**
+- **CRUD operations** for projects.
+- Manage related tasks and tags for each project.
+- Pause and activate projects with the `IsPaused` property.
+
+### 🔥 **Tag Management**
+- **CRUD operations** for tags.
+- Associate tags with tasks and projects.
+
+### 🔥 **Database Integration**
+- SQLite database with migrations for managing schema.
+- Automated schema updates with Entity Framework Core.
+- Tables include `Projects`, `TaskItems`, and `Tags` with relationships.
 
 ---
 
