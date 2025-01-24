@@ -1,5 +1,6 @@
-namespace TodoListApi.Models
 using System.Text.Json.Serialization;
+
+namespace TodoListApi.Models
 {
     public class Project
     {
